@@ -16,6 +16,8 @@ import 'backends.dart';
 import 'moor.dart';
 import 'src/web/binary_string_conversion.dart';
 import 'src/web/sql_js.dart';
+import 'src/web/worker/connector.dart';
 
 part 'src/web/storage.dart';
 part 'src/web/web_db.dart';
+part 'src/web/worker/client.dart';
