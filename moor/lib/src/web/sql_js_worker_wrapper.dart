@@ -46,7 +46,7 @@ class _SqlWorkerConnector {
     _errorSubscription = _worker.onError.listen(_onError);
   }
 
-  Map<int, Completer> _awaitedMessages;
+  final Map<int, Completer> _awaitedMessages = {};
   int _idCounter = -1;
   int _getFreeId() {
     return _idCounter++;
