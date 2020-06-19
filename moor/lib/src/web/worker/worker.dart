@@ -95,14 +95,14 @@ Future<void> _export(int id, dynamic data) async {
 }
 
 void _getUserVersion(int id, dynamic data) {
-  final version = workerServer.getUserVersion();
+  final version = workerServer.userVersion;
   self.postMessage({'id': id, 'res': version});
   answer(id, version);
 }
 
 void _setUserVersion(int id, dynamic data) {
-  final version = data['version'];
-  workerServer.setUserVersion(version as int);
+  final version = data['version'] as int;
+  workerServer.userVersion = version;
   answer(id);
   self.postMessage({'id': id});
 }

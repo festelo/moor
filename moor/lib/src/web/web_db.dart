@@ -26,6 +26,13 @@ class WebDatabase extends DelegatedDatabase {
       {bool logStatements = false, CreateWebDatabase initializer})
       : super(_WebDelegate(storage, initializer),
             logStatements: logStatements, isSequential: true);
+
+  /// A database executor that works on the web.
+  ///
+  /// The [deletage] parameter sets delegate to be used for interactions
+  WebDatabase.withDelegate(DatabaseDelegate deletage,
+      {bool logStatements = false})
+      : super(deletage, logStatements: logStatements, isSequential: true);
 }
 
 class _WebDelegate extends DatabaseDelegate {

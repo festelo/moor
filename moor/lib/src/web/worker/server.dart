@@ -14,7 +14,6 @@ class MoorWorkerServer {
     _db = module.createDatabase(buffer);
   }
 
-
   Future<void> runBatched(List<String> statements,
       List<ArgumentsForBatchedStatement> arguments) async {
     final preparedStatements = [
@@ -35,11 +34,9 @@ class MoorWorkerServer {
     return _handlePotentialUpdate();
   }
 
-
   void runCustom(String statement, List args) {
     _db.runWithArgs(statement, args);
   }
-
 
   Future<int> runInsert(String statement, List args) async {
     _db.runWithArgs(statement, args);
@@ -48,12 +45,10 @@ class MoorWorkerServer {
     return insertId;
   }
 
-
   Future<List<Map<String, dynamic>>> runSelect(
       String statement, List args) async {
     // todo at least for stream queries we should cache prepared statements.
-    final stmt = _db.prepare(statement)
-      ..executeWith(args);
+    final stmt = _db.prepare(statement)..executeWith(args);
 
     List<String> columnNames;
     final rows = <List<dynamic>>[];
@@ -69,7 +64,6 @@ class MoorWorkerServer {
     final res = QueryResult(columnNames, rows);
     return res.asMap.toList();
   }
-
 
   Future<int> runUpdate(String statement, List args) async {
     _db.runWithArgs(statement, args);
@@ -94,11 +88,6 @@ class MoorWorkerServer {
     return _db.export();
   }
 
-  int getUserVersion() {
-    return _db.getUserVersion();
-  }
-
-  void setUserVersion(int version) {
-    return _db.setUserVersion(version);
-  }
+  int get userVersion => _db.userVersion;
+  set userVersion(int v) => _db.userVersion = v;
 }
