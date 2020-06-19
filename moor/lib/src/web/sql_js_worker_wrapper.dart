@@ -53,6 +53,9 @@ class _SqlWorkerConnector {
   }
 
   void _onError(dynamic e) {
+    if (e is ErrorEvent) {
+      throw Exception('Error received from worker: ${e.message}');
+    }
     throw Exception('Unknown error received from worker: $e');
   }
 
