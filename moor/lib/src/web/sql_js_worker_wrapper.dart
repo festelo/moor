@@ -10,14 +10,15 @@ import 'sql_js.dart';
 // this file.
 
 /// Calls the `initSqlJs` function from the native sql.js library.
-SqlJsModuleBase initSqlJsWorker(String path) {
-  return SqlJsWorkerModule._(Worker(path));
+SqlJsModuleBase initSqlJsWorker(String worker, String script) {
+  return SqlJsWorkerModule._(Worker(worker), script);
 }
 
 /// `sql.js` module from the underlying library
 class SqlJsWorkerModule implements SqlJsModuleBase {
   final Worker _obj;
-  SqlJsWorkerModule._(this._obj);
+  final String _scriptPath;
+  SqlJsWorkerModule._(this._obj, this._scriptPath);
 
   /// Constructs a new [SqlJsDatabase], optionally from the [data] blob.
   @override
@@ -28,11 +29,10 @@ class SqlJsWorkerModule implements SqlJsModuleBase {
 
   Future<_SqlWorkerConnector> _createDbInternally(Uint8List data) async {
     final worker = _SqlWorkerConnector(_obj);
-    if (data != null) {
-      await worker.exec('create', {'buffer': data});
-    } else {
-      await worker.exec('create');
-    }
+    await worker.exec(
+      'create',
+      {'script': _scriptPath, if (data != null) 'buffer': data},
+    );
     return worker;
   }
 }
@@ -74,8 +74,9 @@ class _SqlWorkerConnector {
     final completer = Completer();
     _awaitedMessages[messageId] = completer;
     _worker.postMessage({'id': messageId, 'action': action, ...params});
+    final res = await completer.future;
     _awaitedMessages.remove(messageId);
-    return await completer.future;
+    return res;
   }
 
   Future<void> close() async {

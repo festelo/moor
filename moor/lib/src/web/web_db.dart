@@ -18,9 +18,12 @@ class WebDatabase extends DelegatedDatabase {
     CreateWebDatabase initializer,
     bool inWorker = false,
     String workerPath = 'sql_worker.js',
+    String sqlScriptPath = 'sql-wasm.js',
   }) : super(
             _WebDelegate(MoorWebStorage(name), initializer,
-                inWorker: inWorker, workerPath: workerPath),
+                inWorker: inWorker,
+                workerPath: workerPath,
+                sqlScriptPath: sqlScriptPath),
             logStatements: logStatements,
             isSequential: true);
 
@@ -35,9 +38,12 @@ class WebDatabase extends DelegatedDatabase {
     CreateWebDatabase initializer,
     bool inWorker = false,
     String workerPath = 'sql_worker.js',
+    String sqlScriptPath = 'sql-wasm.js',
   }) : super(
             _WebDelegate(storage, initializer,
-                inWorker: inWorker, workerPath: workerPath),
+                inWorker: inWorker,
+                workerPath: workerPath,
+                sqlScriptPath: sqlScriptPath),
             logStatements: logStatements,
             isSequential: true);
 }
@@ -47,12 +53,13 @@ class _WebDelegate extends DatabaseDelegate {
   final CreateWebDatabase initializer;
   final bool inWorker;
   final String workerPath;
+  final String sqlScriptPath;
   SqlJsDatabaseBase _db;
 
   bool _inTransaction = false;
 
   _WebDelegate(this.storage, this.initializer,
-      {this.inWorker = false, this.workerPath});
+      {this.inWorker = false, this.workerPath, this.sqlScriptPath});
 
   @override
   set isInTransaction(bool value) {
@@ -85,7 +92,7 @@ class _WebDelegate extends DatabaseDelegate {
 
     SqlJsModuleBase module;
     if (inWorker) {
-      module = initSqlJsWorker(workerPath);
+      module = initSqlJsWorker(workerPath, sqlScriptPath);
     } else {
       module = await initSqlJs();
     }

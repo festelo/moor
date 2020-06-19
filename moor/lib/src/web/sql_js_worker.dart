@@ -17,9 +17,11 @@ Future<void> main() async {
     final action = e.data['action'];
     final id = e.data['id'] as int;
     if (action == 'create') {
+      self.importScripts(e.data['script'] as String);
       final module = await initSqlJs();
       final buffer = e.data['buffer'] as Uint8List;
       _database = module.createDatabase(buffer);
+      self.postMessage({'id': id});
       continue;
     }
     if (_database == null) {
