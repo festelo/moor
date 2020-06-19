@@ -12,30 +12,47 @@ class WebDatabase extends DelegatedDatabase {
   ///
   /// [name] can be used to identify multiple databases. The optional
   /// [initializer] can be used to initialize the database if it doesn't exist.
-  WebDatabase(String name,
-      {bool logStatements = false, CreateWebDatabase initializer})
-      : super(_WebDelegate(MoorWebStorage(name), initializer),
-            logStatements: logStatements, isSequential: true);
+  WebDatabase(
+    String name, {
+    bool logStatements = false,
+    CreateWebDatabase initializer,
+    bool inWorker = false,
+    String workerPath = 'sql_worker.js',
+  }) : super(
+            _WebDelegate(MoorWebStorage(name), initializer,
+                inWorker: inWorker, workerPath: workerPath),
+            logStatements: logStatements,
+            isSequential: true);
 
   /// A database executor that works on the web.
   ///
   /// The [storage] parameter controls how the data will be stored. The default
   /// constructor of [MoorWebStorage] will use local storage for that, but an
   /// IndexedDB-based implementation is available via.
-  WebDatabase.withStorage(MoorWebStorage storage,
-      {bool logStatements = false, CreateWebDatabase initializer})
-      : super(_WebDelegate(storage, initializer),
-            logStatements: logStatements, isSequential: true);
+  WebDatabase.withStorage(
+    MoorWebStorage storage, {
+    bool logStatements = false,
+    CreateWebDatabase initializer,
+    bool inWorker = false,
+    String workerPath = 'sql_worker.js',
+  }) : super(
+            _WebDelegate(storage, initializer,
+                inWorker: inWorker, workerPath: workerPath),
+            logStatements: logStatements,
+            isSequential: true);
 }
 
 class _WebDelegate extends DatabaseDelegate {
   final MoorWebStorage storage;
   final CreateWebDatabase initializer;
-  SqlJsDatabase _db;
+  final bool inWorker;
+  final String workerPath;
+  SqlJsDatabaseBase _db;
 
   bool _inTransaction = false;
 
-  _WebDelegate(this.storage, this.initializer);
+  _WebDelegate(this.storage, this.initializer,
+      {this.inWorker = false, this.workerPath});
 
   @override
   set isInTransaction(bool value) {
@@ -66,7 +83,12 @@ class _WebDelegate extends DatabaseDelegate {
     final dbVersion = db.schemaVersion;
     assert(dbVersion >= 1, 'Database schema version needs to be at least 1');
 
-    final module = await initSqlJs();
+    SqlJsModuleBase module;
+    if (inWorker) {
+      module = initSqlJsWorker(workerPath);
+    } else {
+      module = await initSqlJs();
+    }
 
     await storage.open();
     var restored = await storage.restore();
@@ -76,13 +98,13 @@ class _WebDelegate extends DatabaseDelegate {
       await storage.store(restored);
     }
 
-    _db = module.createDatabase(restored);
+    _db = await module.createDatabase(restored);
   }
 
   @override
-  Future<void> runBatched(BatchedStatements statements) {
+  Future<void> runBatched(BatchedStatements statements) async {
     final preparedStatements = [
-      for (final stmt in statements.statements) _db.prepare(stmt),
+      for (final stmt in statements.statements) await _db.prepare(stmt),
     ];
 
     for (final application in statements.arguments) {
@@ -94,36 +116,36 @@ class _WebDelegate extends DatabaseDelegate {
     }
 
     for (final prepared in preparedStatements) {
-      prepared.free();
+      await prepared.free();
     }
     return _handlePotentialUpdate();
   }
 
   @override
-  Future<void> runCustom(String statement, List args) {
-    _db.runWithArgs(statement, args);
-    return Future.value();
+  Future<void> runCustom(String statement, List args) async {
+    await _db.runWithArgs(statement, args);
   }
 
   @override
   Future<int> runInsert(String statement, List args) async {
-    _db.runWithArgs(statement, args);
+    await _db.runWithArgs(statement, args);
     final insertId = _db.lastInsertId();
     await _handlePotentialUpdate();
     return insertId;
   }
 
   @override
-  Future<QueryResult> runSelect(String statement, List args) {
+  Future<QueryResult> runSelect(String statement, List args) async {
     // todo at least for stream queries we should cache prepared statements.
-    final stmt = _db.prepare(statement)..executeWith(args);
+    final stmt = await _db.prepare(statement)
+      ..executeWith(args);
 
     List<String> columnNames;
     final rows = <List<dynamic>>[];
 
-    while (stmt.step()) {
-      columnNames ??= stmt.columnNames();
-      rows.add(stmt.currentRow());
+    while (await stmt.step()) {
+      columnNames ??= await stmt.columnNames();
+      rows.add(await stmt.currentRow());
     }
 
     columnNames ??= []; // assume no column names when there were no rows
@@ -133,15 +155,15 @@ class _WebDelegate extends DatabaseDelegate {
   }
 
   @override
-  Future<int> runUpdate(String statement, List args) {
-    _db.runWithArgs(statement, args);
+  Future<int> runUpdate(String statement, List args) async {
+    await _db.runWithArgs(statement, args);
     return _handlePotentialUpdate();
   }
 
   @override
   Future<void> close() async {
     await _storeDb();
-    _db?.close();
+    await _db?.close();
     await storage.close();
   }
 
@@ -155,7 +177,7 @@ class _WebDelegate extends DatabaseDelegate {
   /// Saves the database if the last statement changed rows. As a side-effect,
   /// saving the database resets the `last_insert_id` counter in sqlite.
   Future<int> _handlePotentialUpdate() async {
-    final modified = _db.lastModifiedRows();
+    final modified = await _db.lastModifiedRows();
     if (modified > 0) {
       await _storeDb();
     }
@@ -164,7 +186,8 @@ class _WebDelegate extends DatabaseDelegate {
 
   Future<void> _storeDb() async {
     if (!isInTransaction) {
-      await storage.store(_db.export());
+      final data = await _db.export();
+      await storage.store(data);
     }
   }
 }
@@ -186,7 +209,7 @@ class _WebVersionDelegate extends DynamicVersionDelegate {
       version = storage.schemaVersion;
     }
 
-    return version ?? delegate._db.userVersion;
+    return version ?? await delegate._db.getUserVersion();
   }
 
   @override
@@ -197,6 +220,6 @@ class _WebVersionDelegate extends DynamicVersionDelegate {
       storage.schemaVersion = version;
     }
 
-    delegate._db.userVersion = version;
+    await delegate._db.setUserVersion(version);
   }
 }
