@@ -11,11 +11,13 @@ import 'dart:indexed_db';
 import 'dart:js';
 
 import 'package:meta/meta.dart';
+import 'package:moor/src/web/sql_js_worker_wrapper.dart';
 
 import 'backends.dart';
 import 'moor.dart';
 import 'src/web/binary_string_conversion.dart';
 import 'src/web/sql_js.dart';
+import 'src/web/sql_js_worker_wrapper.dart';
 
 part 'src/web/storage.dart';
 part 'src/web/web_db.dart';
