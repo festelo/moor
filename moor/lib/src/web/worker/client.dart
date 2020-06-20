@@ -51,20 +51,6 @@ class MoorWorkerClient extends DatabaseDelegate {
   @override
   bool get isOpen => _isOpen;
 
-  bool _inTransaction = false;
-
-  @override
-  set isInTransaction(bool value) {
-    // _inTransaction = value;
-
-    if (!_inTransaction) {
-      // _storeDb(); TODO: Reimplement transactions
-    }
-  }
-
-  @override
-  bool get isInTransaction => _inTransaction;
-
   @override
   Future<void> open(QueryExecutorUser db) async {
     final dbVersion = db.schemaVersion;
@@ -140,7 +126,8 @@ class MoorWorkerClient extends DatabaseDelegate {
   }
 
   @override
-  TransactionDelegate get transactionDelegate => const NoTransactionDelegate();
+  TransactionDelegate get transactionDelegate =>
+      WorkerTransactionDelegate(this);
 
   @override
   DbVersionDelegate get versionDelegate => _MoorWorkerVersionDelegate(this);
@@ -149,6 +136,16 @@ class MoorWorkerClient extends DatabaseDelegate {
     if (!isInTransaction) {
       await _worker.exec('storeDb');
     }
+  }
+}
+
+class WorkerTransactionDelegate extends SupportedTransactionDelegate {
+  final MoorWorkerClient client;
+  const WorkerTransactionDelegate(this.client);
+
+  @override
+  Future<void> startTransaction(Future Function(QueryDelegate p) run) async {
+    await run(client);
   }
 }
 
