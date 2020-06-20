@@ -99,7 +99,7 @@ class MoorWorkerClient extends DatabaseDelegate {
   Future<void> runBatched(BatchedStatements statements) async {
     await _worker.exec('runBatched', {
       'statements': statements.statements,
-      'arguments': statements.arguments,
+      'arguments': statements.arguments.map((e) => e.toMap()).toList(),
     });
   }
 

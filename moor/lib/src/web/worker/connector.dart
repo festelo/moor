@@ -42,6 +42,8 @@ class MoorConnector {
   StreamSubscription _errorSubscription;
   final _onMessageController = StreamController<MessageEvent>.broadcast();
 
+  static const _timeout = Duration(seconds: 20);
+
   /// Stream for events sent by server
   Stream<MessageEvent> get onMessage => _onMessageController.stream;
 
@@ -94,8 +96,15 @@ class MoorConnector {
     final completer = Completer();
     _awaitedMessages[messageId] = completer;
     _worker.postMessage({'id': messageId, 'action': action, ...params});
-    final response = await completer.future;
+
+    final response =
+        await Future.any([completer.future, Future.delayed(_timeout)]);
     _awaitedMessages.remove(messageId);
+
+    if (!completer.isCompleted) {
+      throw Exception(
+          'Worker timeout reached. Message #$messageId ($action) - $params');
+    }
     return response['res'] as T;
   }
 

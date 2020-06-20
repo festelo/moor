@@ -42,8 +42,7 @@ Future<void> main() async {
 
 /// Sends response back
 void answer(int id, [dynamic data]) {
-  self.postMessage(
-      {'id': id, 'type': 'response', if (data != null) 'res': data});
+  connector.answer(id, data);
 }
 
 Future<void> _open(int id, dynamic data) async {
