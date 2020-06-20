@@ -21,7 +21,9 @@ class MoorWorkerServer {
 
     if (restored == null) {
       restored = await _client.exec<Uint8List>('init');
-      await storage.store(restored);
+      if (restored != null) {
+        await storage.store(restored);
+      }
     }
 
     final module = await initSqlJs();
@@ -118,9 +120,8 @@ class MoorWorkerServer {
     return version ?? _db.userVersion;
   }
 
-  set schemaVersion(int val) {
+  set schemaVersion(int version) {
     final storage = this.storage;
-    int version;
     if (storage is CustomSchemaVersionSave) {
       storage.schemaVersion = version;
     }

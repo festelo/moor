@@ -62,7 +62,7 @@ abstract class MoorWebStorageFactory {
   /// Uses [MoorWebStorage.indexedDb] if the current browser supports it.
   /// Otherwise, falls back to the local storage based implementation.
   factory MoorWebStorageFactory.indexedDbIfSupported(String name,
-      {bool inWebWorker = false}) {
+      {bool inWebWorker = true}) {
     return supportsIndexedDb(inWebWorker: inWebWorker)
         ? MoorWebStorageFactory.indexedDb(name, inWebWorker: inWebWorker)
         : MoorWebStorageFactory(name);
@@ -113,7 +113,7 @@ class _IndexedDbStorageFactory implements MoorWebStorageFactory {
 
   _IndexedDbStorageFactory(
     this.name, {
-    this.migrateFromLocalStorage = true,
+    this.migrateFromLocalStorage = false,
     this.inWebWorker = false,
   });
 

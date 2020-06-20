@@ -19,8 +19,12 @@ class MoorWorkerClient extends DatabaseDelegate {
   }) {
     _connectorSubscription = _worker.onMessage.listen((e) async {
       if (e.data['action'] == 'init') {
-        final data = await initializer();
-        _worker.answer(e.data['id'] as int, data);
+        if (initializer != null) {
+          final data = await initializer();
+          _worker.answer(e.data['id'] as int, data);
+        } else {
+          _worker.answer(e.data['id'] as int);
+        }
       }
     });
   }
@@ -51,7 +55,7 @@ class MoorWorkerClient extends DatabaseDelegate {
 
   @override
   set isInTransaction(bool value) {
-    _inTransaction = value;
+    // _inTransaction = value;
 
     if (!_inTransaction) {
       // _storeDb(); TODO: Reimplement transactions
