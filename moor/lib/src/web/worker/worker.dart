@@ -1,6 +1,7 @@
 @JS()
 library sql_js_worker;
 
+import 'dart:async';
 import 'dart:html';
 import 'dart:typed_data';
 import 'package:js/js.dart';
@@ -18,11 +19,13 @@ final connector = MoorConnector.fromScope(self);
 final MoorWorkerServer workerServer =
     MoorWorkerServer(() => connector.exec('storeDb'));
 
-Future<void> main() async {
-  connector.onMessage.listen((e) {
+void main() {
+  connector.onMessage.listen((e) async {
     final action = e.data['action'];
     final id = e.data['id'] as int;
-    final functions = {
+    log('$id received - $action. ${e.data}');
+    final functions = <String, FutureOr<void> Function(int, dynamic)>{
+      'setLogging': _setLogging,
       'open': _open,
       'runCustom': _runCustom,
       'runInsert': _runInsert,
@@ -36,13 +39,33 @@ Future<void> main() async {
     if (functions[action] == null) {
       throw Exception('Function for $action not found');
     }
-    functions[action](id, e.data);
+    try {
+      await functions[action](id, e.data);
+    } catch (e) {
+      log('Error when handling message $id');
+      rethrow;
+    }
   });
 }
 
 /// Sends response back
 void answer(int id, [dynamic data]) {
   connector.answer(id, data);
+}
+
+bool _logging = false;
+
+/// Prints message to console if logging is enabled
+void log(String message) {
+  if (_logging) {
+    print(message);
+  }
+}
+
+void _setLogging(int id, dynamic data) {
+  final enable = data['enable'] as bool;
+  _logging = enable;
+  answer(id);
 }
 
 Future<void> _open(int id, dynamic data) async {
@@ -74,7 +97,7 @@ Future<void> _runSelect(int id, dynamic data) async {
 }
 
 Future<void> _runBatched(int id, dynamic data) async {
-  final statement = data['statements'] as List<String>;
+  final statement = (data['statements'] as List).cast<String>();
   final argsParam = data['args'] as List;
   final args = argsParam
       .map((e) => ArgumentsForBatchedStatement.fromMap((e as Map).cast()))

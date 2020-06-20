@@ -7,10 +7,13 @@ class MoorWorkerClient extends DatabaseDelegate {
   StreamSubscription<MessageEvent> _connectorSubscription;
   final String _sqlJsPath;
   bool _isOpen = false;
+  final bool enableLogging;
 
   /// Client for web database executed in `worker`
   MoorWorkerClient.fromConnector(
-      this._worker, this._sqlJsPath, this.storage, this.initializer) {
+      this._worker, this._sqlJsPath, this.storage, this.initializer, {
+        this.enableLogging = false,
+      }) {
     _connectorSubscription = _worker.onMessage.listen((e) async {
       if (e.data['action'] == 'storeDb') {
         await _storeDb();
@@ -23,13 +26,14 @@ class MoorWorkerClient extends DatabaseDelegate {
   /// Server should be placed as script at `path`
   factory MoorWorkerClient(
     String workerPath,
-    String sqlJsPath,
-    MoorWebStorage storage,
+    String sqlJsPath, 
+    MoorWebStorage storage, {
     CreateWebDatabase initializer,
-  ) {
+    bool enableLogging = false,
+  }) {
     final worker = MoorConnector(workerPath);
     return MoorWorkerClient.fromConnector(
-        worker, sqlJsPath, storage, initializer);
+        worker, sqlJsPath, storage, initializer, enableLogging: enableLogging,);
   }
 
   @override
@@ -66,6 +70,9 @@ class MoorWorkerClient extends DatabaseDelegate {
       'open',
       {'script': _sqlJsPath, if (restored != null) 'buffer': restored},
     );
+    if (enableLogging) {
+      await _worker.exec('setLogging', {'enable': true});
+    }
     _isOpen = true;
   }
 
@@ -99,7 +106,7 @@ class MoorWorkerClient extends DatabaseDelegate {
   Future<void> runBatched(BatchedStatements statements) async {
     await _worker.exec('runBatched', {
       'statements': statements.statements,
-      'arguments': statements.arguments.map((e) => e.toMap()).toList(),
+      'args': statements.arguments.map((e) => e.toMap()).toList(),
     });
   }
 
