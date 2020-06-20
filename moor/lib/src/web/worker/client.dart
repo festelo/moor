@@ -139,7 +139,7 @@ class MoorWorkerClient extends DatabaseDelegate {
   }
 }
 
-class _MoorWorkerVersionDelegate implements DbVersionDelegate {
+class _MoorWorkerVersionDelegate extends DynamicVersionDelegate {
   final MoorWorkerClient client;
   _MoorWorkerVersionDelegate(this.client);
   // Note: Earlier moor versions used to store the database version in a special
