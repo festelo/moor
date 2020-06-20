@@ -2,16 +2,30 @@ import 'dart:typed_data';
 
 import 'package:moor/backends.dart';
 import 'package:moor/moor.dart';
+import 'package:moor/moor_web.dart';
+import 'package:moor/src/web/worker/connector.dart';
 import '../sql_js.dart';
 
 class MoorWorkerServer {
   SqlJsDatabase _db;
-  final Future<void> Function() storeDb;
-  MoorWorkerServer(this.storeDb);
+  MoorWebStorage storage;
+  final MoorConnector _client;
+  MoorWorkerServer(this._client);
 
-  Future<void> open(Uint8List buffer) async {
+  Future<void> open(
+    MoorWebStorageFactory storageFactory,
+  ) async {
+    storage = storageFactory.build();
+    await storage.open();
+    var restored = await storage.restore();
+
+    if (restored == null) {
+      restored = await _client.exec<Uint8List>('init');
+      await storage.store(restored);
+    }
+
     final module = await initSqlJs();
-    _db = module.createDatabase(buffer);
+    _db = module.createDatabase(restored);
   }
 
   Future<void> runBatched(List<String> statements,
@@ -71,7 +85,9 @@ class MoorWorkerServer {
   }
 
   Future<void> close() async {
+    await storeDb();
     _db?.close();
+    await storage.close();
   }
 
   /// Saves the database if the last statement changed rows. As a side-effect,
@@ -88,6 +104,27 @@ class MoorWorkerServer {
     return _db.export();
   }
 
-  int get userVersion => _db.userVersion;
-  set userVersion(int v) => _db.userVersion = v;
+  Future<void> storeDb() async {
+    await storage.store(_db.export());
+  }
+
+  int get schemaVersion {
+    final storage = this.storage;
+    int version;
+    if (storage is CustomSchemaVersionSave) {
+      version = storage.schemaVersion;
+    }
+
+    return version ?? _db.userVersion;
+  }
+
+  set schemaVersion(int val) {
+    final storage = this.storage;
+    int version;
+    if (storage is CustomSchemaVersionSave) {
+      storage.schemaVersion = version;
+    }
+
+    _db.userVersion = version;
+  }
 }

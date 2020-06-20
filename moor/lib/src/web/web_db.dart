@@ -189,7 +189,7 @@ class _WebVersionDelegate extends DynamicVersionDelegate {
   Future<int> get schemaVersion async {
     final storage = delegate.storage;
     int version;
-    if (storage is _CustomSchemaVersionSave) {
+    if (storage is CustomSchemaVersionSave) {
       version = storage.schemaVersion;
     }
 
@@ -200,7 +200,7 @@ class _WebVersionDelegate extends DynamicVersionDelegate {
   Future<void> setSchemaVersion(int version) async {
     final storage = delegate.storage;
 
-    if (storage is _CustomSchemaVersionSave) {
+    if (storage is CustomSchemaVersionSave) {
       storage.schemaVersion = version;
     }
 

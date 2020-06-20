@@ -3,9 +3,9 @@ library sql_js_worker;
 
 import 'dart:async';
 import 'dart:html';
-import 'dart:typed_data';
 import 'package:js/js.dart';
 import 'package:moor/backends.dart';
+import 'package:moor/moor_web.dart';
 import 'connector.dart';
 import 'server.dart';
 
@@ -16,8 +16,7 @@ external DedicatedWorkerGlobalScope get self;
 final connector = MoorConnector.fromScope(self);
 
 /// WorkerServer for handling requests
-final MoorWorkerServer workerServer =
-    MoorWorkerServer(() => connector.exec('storeDb'));
+final MoorWorkerServer workerServer = MoorWorkerServer(connector);
 
 void main() {
   connector.onMessage.listen((e) async {
@@ -33,8 +32,9 @@ void main() {
       'runBatched': _runBatched,
       'close': _close,
       'export': _export,
-      'getUserVersion': _getUserVersion,
-      'setUserVersion': _setUserVersion,
+      'getSchemaVersion': _getSchemaVersion,
+      'setSchemaVersion': _setSchemaVersion,
+      'storeDb': _storeDb,
     };
     if (functions[action] == null) {
       throw Exception('Function for $action not found');
@@ -70,8 +70,9 @@ void _setLogging(int id, dynamic data) {
 
 Future<void> _open(int id, dynamic data) async {
   self.importScripts(data['script'] as String);
-  final buffer = data['buffer'] as Uint8List;
-  await workerServer.open(buffer);
+  final storageFactory =
+      MoorWebStorageFactory.fromMap((data['factory'] as Map).cast());
+  await workerServer.open(storageFactory);
   answer(id);
 }
 
@@ -116,15 +117,18 @@ Future<void> _export(int id, dynamic data) async {
   answer(id, data);
 }
 
-void _getUserVersion(int id, dynamic data) {
-  final version = workerServer.userVersion;
-  self.postMessage({'id': id, 'res': version});
+void _getSchemaVersion(int id, dynamic data) {
+  final version = workerServer.schemaVersion;
   answer(id, version);
 }
 
-void _setUserVersion(int id, dynamic data) {
+void _setSchemaVersion(int id, dynamic data) {
   final version = data['version'] as int;
-  workerServer.userVersion = version;
+  workerServer.schemaVersion = version;
   answer(id);
-  self.postMessage({'id': id});
+}
+
+Future<void> _storeDb(int id, dynamic data) async {
+  await workerServer.storeDb();
+  answer(id);
 }

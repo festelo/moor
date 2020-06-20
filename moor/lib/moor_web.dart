@@ -19,5 +19,6 @@ import 'src/web/sql_js.dart';
 import 'src/web/worker/connector.dart';
 
 part 'src/web/storage.dart';
+part 'src/web/storage_factory.dart';
 part 'src/web/web_db.dart';
 part 'src/web/worker/client.dart';

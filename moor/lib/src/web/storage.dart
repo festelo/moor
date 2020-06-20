@@ -71,7 +71,7 @@ abstract class MoorWebStorage {
   }
 }
 
-abstract class _CustomSchemaVersionSave implements MoorWebStorage {
+abstract class CustomSchemaVersionSave implements MoorWebStorage {
   int /*?*/ get schemaVersion;
   set schemaVersion(int value);
 }
@@ -92,7 +92,7 @@ Uint8List /*?*/ _restoreLocalStorage(String name) {
   return null;
 }
 
-class _LocalStorageImpl implements MoorWebStorage, _CustomSchemaVersionSave {
+class _LocalStorageImpl implements MoorWebStorage, CustomSchemaVersionSave {
   final String name;
 
   String get _persistenceKey => _persistenceKeyForLocalStorage(name);

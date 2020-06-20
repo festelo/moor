@@ -1,7 +1,7 @@
 part of 'package:moor/moor_web.dart';
 
 class MoorWorkerClient extends DatabaseDelegate {
-  final MoorWebStorage storage;
+  final MoorWebStorageFactory storageFactory;
   final CreateWebDatabase initializer;
   final MoorConnector _worker;
   StreamSubscription<MessageEvent> _connectorSubscription;
@@ -11,13 +11,16 @@ class MoorWorkerClient extends DatabaseDelegate {
 
   /// Client for web database executed in `worker`
   MoorWorkerClient.fromConnector(
-      this._worker, this._sqlJsPath, this.storage, this.initializer, {
-        this.enableLogging = false,
-      }) {
+    this._worker,
+    this._sqlJsPath,
+    this.storageFactory,
+    this.initializer, {
+    this.enableLogging = false,
+  }) {
     _connectorSubscription = _worker.onMessage.listen((e) async {
-      if (e.data['action'] == 'storeDb') {
-        await _storeDb();
-        _worker.answer(e.data['id'] as int);
+      if (e.data['action'] == 'init') {
+        final data = await initializer();
+        _worker.answer(e.data['id'] as int, data);
       }
     });
   }
@@ -26,14 +29,19 @@ class MoorWorkerClient extends DatabaseDelegate {
   /// Server should be placed as script at `path`
   factory MoorWorkerClient(
     String workerPath,
-    String sqlJsPath, 
-    MoorWebStorage storage, {
+    String sqlJsPath,
+    MoorWebStorageFactory storageFactory, {
     CreateWebDatabase initializer,
     bool enableLogging = false,
   }) {
     final worker = MoorConnector(workerPath);
     return MoorWorkerClient.fromConnector(
-        worker, sqlJsPath, storage, initializer, enableLogging: enableLogging,);
+      worker,
+      sqlJsPath,
+      storageFactory,
+      initializer,
+      enableLogging: enableLogging,
+    );
   }
 
   @override
@@ -46,7 +54,7 @@ class MoorWorkerClient extends DatabaseDelegate {
     _inTransaction = value;
 
     if (!_inTransaction) {
-      _storeDb();
+      // _storeDb(); TODO: Reimplement transactions
     }
   }
 
@@ -58,21 +66,17 @@ class MoorWorkerClient extends DatabaseDelegate {
     final dbVersion = db.schemaVersion;
     assert(dbVersion >= 1, 'Database schema version needs to be at least 1');
 
-    await storage.open();
-    var restored = await storage.restore();
-
-    if (restored == null && initializer != null) {
-      restored = await initializer();
-      await storage.store(restored);
+    if (enableLogging) {
+      await _worker.exec('setLogging', {'enable': true});
     }
 
     await _worker.exec(
       'open',
-      {'script': _sqlJsPath, if (restored != null) 'buffer': restored},
+      {
+        'script': _sqlJsPath,
+        'factory': storageFactory.toMap(),
+      },
     );
-    if (enableLogging) {
-      await _worker.exec('setLogging', {'enable': true});
-    }
     _isOpen = true;
   }
 
@@ -118,19 +122,17 @@ class MoorWorkerClient extends DatabaseDelegate {
 
   @override
   Future<void> close() async {
-    await _storeDb();
     await _worker.exec('close');
     await _worker.close();
-    await storage.close();
     await _connectorSubscription.cancel();
   }
 
-  Future<int> _getUserVersion() async {
-    return await _worker.exec('getUserVersion');
+  Future<int> _getSchemaVersion() async {
+    return await _worker.exec('getSchemaVersion');
   }
 
-  Future<void> _setUserVersion(int version) async {
-    await _worker.exec('setUserVersion', {'version': version});
+  Future<void> _setSchemaVersion(int version) async {
+    await _worker.exec('setSchemaVersion', {'version': version});
   }
 
   @override
@@ -141,8 +143,7 @@ class MoorWorkerClient extends DatabaseDelegate {
 
   Future<void> _storeDb() async {
     if (!isInTransaction) {
-      final data = await _worker.exec<Uint8List>('export');
-      await storage.store(data);
+      await _worker.exec('storeDb');
     }
   }
 }
@@ -156,23 +157,11 @@ class _MoorWorkerVersionDelegate extends DynamicVersionDelegate {
 
   @override
   Future<int> get schemaVersion async {
-    final storage = client.storage;
-    int version;
-    if (storage is _CustomSchemaVersionSave) {
-      version = storage.schemaVersion;
-    }
-
-    return version ?? await client._getUserVersion();
+    return await client._getSchemaVersion();
   }
 
   @override
   Future<void> setSchemaVersion(int version) async {
-    final storage = client.storage;
-
-    if (storage is _CustomSchemaVersionSave) {
-      storage.schemaVersion = version;
-    }
-
-    await client._setUserVersion(version);
+    return await client._setSchemaVersion(version);
   }
 }
