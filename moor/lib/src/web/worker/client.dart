@@ -84,7 +84,8 @@ class MoorWorkerClient extends DatabaseDelegate {
   Future<QueryResult> runSelect(String statement, List args) async {
     final res =
         await _worker.exec('runSelect', {'statement': statement, 'args': args});
-    return QueryResult.fromRows(res as List<Map<String, dynamic>>);
+    return QueryResult.fromRows(
+        (res as List).map((a) => Map<String, dynamic>.from(a as Map)).toList());
   }
 
   @override
