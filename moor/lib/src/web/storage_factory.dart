@@ -16,9 +16,8 @@ abstract class MoorWebStorageFactory {
   ///
   /// Note that worker doesn't share [factories] with the app
   static Map<String, FactoryResolver> factories = {
-    (_IndexedDbStorageFactory).toString(): (m) =>
-        _IndexedDbStorageFactory.fromMap(m),
-    (_LocalStorageFactory).toString(): (m) => _LocalStorageFactory.fromMap(m),
+    _IndexedDbStorageFactory.type: (m) => _IndexedDbStorageFactory.fromMap(m),
+    _LocalStorageFactory.type: (m) => _LocalStorageFactory.fromMap(m),
   };
 
   /// Converts map to web storage factory.
@@ -86,6 +85,7 @@ abstract class MoorWebStorageFactory {
 }
 
 class _LocalStorageFactory implements MoorWebStorageFactory {
+  static const String type = 'LocalStorageFactory';
   final String name;
   const _LocalStorageFactory(this.name);
 
@@ -102,11 +102,12 @@ class _LocalStorageFactory implements MoorWebStorageFactory {
 
   @override
   Map<String, dynamic> toMap() {
-    return {'type': (_LocalStorageFactory).toString(), 'name': name};
+    return {'type': type, 'name': name};
   }
 }
 
 class _IndexedDbStorageFactory implements MoorWebStorageFactory {
+  static const String type = 'IndexedDbStorage';
   final String name;
   final bool migrateFromLocalStorage;
   final bool inWebWorker;
@@ -128,7 +129,7 @@ class _IndexedDbStorageFactory implements MoorWebStorageFactory {
   @override
   Map<String, dynamic> toMap() {
     return {
-      'type': (_IndexedDbStorageFactory).toString(),
+      'type': type,
       'name': name,
       'migrateFromLocalStorage': migrateFromLocalStorage,
       'inWebWorker': inWebWorker,
